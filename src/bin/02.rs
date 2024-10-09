@@ -54,7 +54,7 @@ fn execute(machine: &mut IntcodeMachine) {
     loop {
         let active = step(machine);
         if !active {
-            break
+            break;
         }
     }
 }

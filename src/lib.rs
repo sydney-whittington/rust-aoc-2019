@@ -8,3 +8,9 @@ pub mod template;
 pub fn parse_usize(i: &str) -> IResult<&str, usize> {
     map_res(digit1, usize::from_str)(i)
 }
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct CoordinateSigned {
+    pub x: i32,
+    pub y: i32,
+}

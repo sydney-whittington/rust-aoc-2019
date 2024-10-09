@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 advent_of_code::solution!(2);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct IntcodeMachine {
     program: Vec<usize>,
     instruction_pointer: usize,
@@ -15,7 +15,7 @@ fn parser(i: &str) -> IResult<&str, Vec<usize>> {
     separated_list1(tag(","), parse_usize)(i)
 }
 
-fn execute(machine: &mut IntcodeMachine) -> bool {
+fn step(machine: &mut IntcodeMachine) -> bool {
     let current_instruction = machine.program.get(machine.instruction_pointer);
     if let Some(opcode) = current_instruction {
         match opcode {
@@ -50,6 +50,15 @@ fn execute(machine: &mut IntcodeMachine) -> bool {
     true
 }
 
+fn execute(machine: &mut IntcodeMachine) {
+    loop {
+        let active = step(machine);
+        if !active {
+            break
+        }
+    }
+}
+
 pub fn part_one(input: &str) -> Option<usize> {
     let (_, program) = parser(input).unwrap();
     let mut machine = IntcodeMachine {
@@ -60,17 +69,32 @@ pub fn part_one(input: &str) -> Option<usize> {
     machine.program[1] = 12;
     machine.program[2] = 2;
 
-    loop {
-        let active = execute(&mut machine);
-        if !active {
-            break
-        }
-    }
+    execute(&mut machine);
 
     Some(machine.program[0])
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
+pub fn part_two(input: &str) -> Option<usize> {
+    let (_, program) = parser(input).unwrap();
+    let machine = IntcodeMachine {
+        program,
+        instruction_pointer: 0,
+    };
+
+    // can't run off the end of the program
+    let cap = machine.program.len() - 1;
+    for (noun, verb) in (0..=cap).cartesian_product(0..=cap) {
+        let mut trial = machine.clone();
+        trial.program[1] = noun;
+        trial.program[2] = verb;
+
+        execute(&mut trial);
+
+        if trial.program[0] == 19690720 {
+            return Some(100 * noun + verb);
+        }
+    }
+
     None
 }
 
@@ -87,12 +111,7 @@ mod tests {
             instruction_pointer: 0,
         };
 
-        loop {
-            let active = execute(&mut machine);
-            if !active {
-                break
-            }
-        }
+        execute(&mut machine);
 
         assert_eq!(Some(machine.program[0]), Some(3500));
     }

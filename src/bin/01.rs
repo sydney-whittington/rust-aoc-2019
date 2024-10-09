@@ -1,18 +1,29 @@
-use nom::{character::complete::{newline, u32}, multi::separated_list0, IResult};
+use nom::{character::complete::{newline, i32}, multi::separated_list0, IResult};
 
 advent_of_code::solution!(1);
 
-fn parser(i: &str) -> IResult<&str, Vec<u32>> {
-    separated_list0(newline, u32)(i)
+fn parser(i: &str) -> IResult<&str, Vec<i32>> {
+    separated_list0(newline, i32)(i)
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
+fn calculate_fuel(w: &i32) -> i32 {
+    let fuel = (*w/3) as i32 - 2;
+    if fuel > 0 {
+        return fuel + calculate_fuel(&fuel)
+    }
+    else {
+        return 0
+    }
+}
+
+pub fn part_one(input: &str) -> Option<i32> {
     let (_, nums) = parser(input).unwrap();
     Some(nums.iter().map(|n| n/3 - 2).sum())
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<i32> {
+    let (_, nums) = parser(input).unwrap();
+    Some(nums.iter().map(calculate_fuel).sum())
 }
 
 #[cfg(test)]
@@ -28,6 +39,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(2+2+966+50346));
     }
 }

@@ -89,6 +89,7 @@ fn decode_instruction(instruction: &i32) -> Instruction {
 
     Instruction {
         opcode,
+        // for lining up so modes.1 is mode 1
         modes: (Mode::Placeholder, mode_1, mode_2, mode_3),
     }
 }

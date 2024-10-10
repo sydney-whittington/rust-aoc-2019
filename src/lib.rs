@@ -27,6 +27,20 @@ pub struct IntcodeMachine {
     pub instruction_pointer: usize,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Mode {
+    Position,
+    Immediate,
+}
+
+fn mode_from_digit(c: &char) -> Mode {
+    match c {
+        '0' => Mode::Position,
+        '1' => Mode::Immediate,
+        _ => panic!("unexpected mode {}", c),
+    }
+}
+
 pub fn parse_machine(i: &str) -> IResult<&str, IntcodeMachine> {
     let (i, program) = separated_list1(tag(","), i32)(i)?;
 
@@ -40,6 +54,18 @@ pub fn parse_machine(i: &str) -> IResult<&str, IntcodeMachine> {
 }
 
 fn step(machine: &mut IntcodeMachine) -> bool {
+    macro_rules! value {
+        ($n:expr, $mode:expr) => {{
+            if matches!($mode, Mode::Position) {
+                *position!($n)
+            } else if matches!($mode, Mode::Immediate) {
+                $n
+            } else {
+                unimplemented!()
+            }
+        }};
+    }
+
     macro_rules! position {
         ($n:expr) => {
             machine
@@ -49,28 +75,46 @@ fn step(machine: &mut IntcodeMachine) -> bool {
         };
     }
     macro_rules! command {
-        ($r:expr) => {
-            machine
+        ($r:expr) => {{
+            let result = machine
                 .program
-                .get(machine.instruction_pointer..=machine.instruction_pointer + $r)
+                .get(machine.instruction_pointer..machine.instruction_pointer + $r)
                 .expect("opcode read out of bounds")
-                .to_owned()
-        };
+                .to_owned();
+            machine.instruction_pointer += $r;
+            result
+        }};
     }
 
     let current_instruction = machine.program.get(machine.instruction_pointer);
-    if let Some(opcode) = current_instruction {
+    if let Some(instruction) = current_instruction {
+        let opcode = instruction % 100;
+        let digits = format!("{:0>5}", instruction.to_string())
+            .chars()
+            .collect::<Vec<_>>();
+        let mode_1 = mode_from_digit(&digits[2]);
+        let mode_2 = mode_from_digit(&digits[1]);
+        let _mode_3 = mode_from_digit(&digits[0]);
+
         match opcode {
             1 => {
                 let addition = command!(4);
-                *position!(addition[3]) = *position!(addition[1]) + *position!(addition[2]);
-                machine.instruction_pointer += 4;
+                *position!(addition[3]) = value!(addition[1], mode_1) + value!(addition[2], mode_2);
             }
             2 => {
                 let multiplication = command!(4);
                 *position!(multiplication[3]) =
-                    *position!(multiplication[1]) * *position!(multiplication[2]);
-                machine.instruction_pointer += 4;
+                    value!(multiplication[1], mode_1) * value!(multiplication[2], mode_2);
+            }
+            3 => {
+                let save = command!(2);
+                // TODO: read from user
+                let input = 1;
+                *position!(save[1]) = input;
+            }
+            4 => {
+                let output = command!(2);
+                println!("Output: {}", value!(output[1], mode_1));
             }
             99 => {
                 // command!(1);

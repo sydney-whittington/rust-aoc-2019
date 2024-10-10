@@ -42,7 +42,8 @@ mod tests {
     #[test]
     // the first test involved replacing values which breaks the tests if used directly
     fn test_part_one() {
-        let (_, mut machine) = parse_machine(&advent_of_code::template::read_file("examples", DAY)).unwrap();
+        let (_, mut machine) =
+            parse_machine(&advent_of_code::template::read_file("examples", DAY)).unwrap();
 
         execute(&mut machine);
 

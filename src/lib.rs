@@ -6,7 +6,10 @@ use nom::{
     IResult,
 };
 
-use std::str::FromStr;
+use std::{
+    io::{self, Write},
+    str::FromStr,
+};
 pub mod template;
 
 // Use this file to add helper functions and additional modules.
@@ -31,6 +34,7 @@ pub struct IntcodeMachine {
 enum Mode {
     Position,
     Immediate,
+    Placeholder,
 }
 
 fn mode_from_digit(c: &char) -> Mode {
@@ -38,6 +42,54 @@ fn mode_from_digit(c: &char) -> Mode {
         '0' => Mode::Position,
         '1' => Mode::Immediate,
         _ => panic!("unexpected mode {}", c),
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Opcode {
+    Addition,
+    Multiplication,
+    Input,
+    Output,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
+    Halt,
+}
+
+fn opcode_from_number(n: &i32) -> Opcode {
+    match n {
+        1 => Opcode::Addition,
+        2 => Opcode::Multiplication,
+        3 => Opcode::Input,
+        4 => Opcode::Output,
+        5 => Opcode::JumpIfTrue,
+        6 => Opcode::JumpIfFalse,
+        7 => Opcode::LessThan,
+        8 => Opcode::Equals,
+        99 => Opcode::Halt,
+        _ => unimplemented!("received unknown opcode {}", n),
+    }
+}
+
+struct Instruction {
+    opcode: Opcode,
+    modes: (Mode, Mode, Mode, Mode),
+}
+
+fn decode_instruction(instruction: &i32) -> Instruction {
+    let opcode = opcode_from_number(&(instruction % 100));
+    let digits = format!("{:0>5}", instruction.to_string())
+        .chars()
+        .collect::<Vec<_>>();
+    let mode_1 = mode_from_digit(&digits[2]);
+    let mode_2 = mode_from_digit(&digits[1]);
+    let mode_3 = mode_from_digit(&digits[0]);
+
+    Instruction {
+        opcode,
+        modes: (Mode::Placeholder, mode_1, mode_2, mode_3),
     }
 }
 
@@ -56,12 +108,10 @@ pub fn parse_machine(i: &str) -> IResult<&str, IntcodeMachine> {
 fn step(machine: &mut IntcodeMachine) -> bool {
     macro_rules! value {
         ($n:expr, $mode:expr) => {{
-            if matches!($mode, Mode::Position) {
-                *position!($n)
-            } else if matches!($mode, Mode::Immediate) {
-                $n
-            } else {
-                unimplemented!()
+            match $mode {
+                Mode::Position => *position!($n),
+                Mode::Immediate => $n,
+                _ => unimplemented!(),
             }
         }};
     }
@@ -88,39 +138,67 @@ fn step(machine: &mut IntcodeMachine) -> bool {
 
     let current_instruction = machine.program.get(machine.instruction_pointer);
     if let Some(instruction) = current_instruction {
-        let opcode = instruction % 100;
-        let digits = format!("{:0>5}", instruction.to_string())
-            .chars()
-            .collect::<Vec<_>>();
-        let mode_1 = mode_from_digit(&digits[2]);
-        let mode_2 = mode_from_digit(&digits[1]);
-        let _mode_3 = mode_from_digit(&digits[0]);
+        let instruction = decode_instruction(instruction);
+        match instruction.opcode {
+            Opcode::Addition => {
+                let parameters = command!(4);
+                *position!(parameters[3]) = value!(parameters[1], instruction.modes.1)
+                    + value!(parameters[2], instruction.modes.2);
+            }
+            Opcode::Multiplication => {
+                let parameters = command!(4);
+                *position!(parameters[3]) = value!(parameters[1], instruction.modes.1)
+                    * value!(parameters[2], instruction.modes.2);
+            }
+            Opcode::Input => {
+                let parameters = command!(2);
+                println!("Input: ");
+                io::stdout().flush().expect("unable to flush stdout");
 
-        match opcode {
-            1 => {
-                let addition = command!(4);
-                *position!(addition[3]) = value!(addition[1], mode_1) + value!(addition[2], mode_2);
+                let mut input_line = String::new();
+                io::stdin()
+                    .read_line(&mut input_line)
+                    .expect("Failed to read line");
+                let input: i32 = input_line.trim().parse().expect("Input not an integer");
+                *position!(parameters[1]) = input;
             }
-            2 => {
-                let multiplication = command!(4);
-                *position!(multiplication[3]) =
-                    value!(multiplication[1], mode_1) * value!(multiplication[2], mode_2);
+            Opcode::Output => {
+                // TODO: save outputs to test programatically?
+                let parameters = command!(2);
+                println!("Output: {}", value!(parameters[1], instruction.modes.1));
             }
-            3 => {
-                let save = command!(2);
-                // TODO: read from user
-                let input = 1;
-                *position!(save[1]) = input;
+            Opcode::JumpIfTrue => {
+                let parameters = command!(3);
+                if value!(parameters[1], instruction.modes.1) != 0 {
+                    machine.instruction_pointer = value!(parameters[2], instruction.modes.2)
+                        .try_into()
+                        .expect("attempt to jump to invalid address");
+                }
             }
-            4 => {
-                let output = command!(2);
-                println!("Output: {}", value!(output[1], mode_1));
+            Opcode::JumpIfFalse => {
+                let parameters = command!(3);
+                if value!(parameters[1], instruction.modes.1) == 0 {
+                    machine.instruction_pointer = value!(parameters[2], instruction.modes.2)
+                        .try_into()
+                        .expect("attempt to jump to invalid address");
+                }
             }
-            99 => {
+            Opcode::LessThan => {
+                let parameters = command!(4);
+                *position!(parameters[3]) = (value!(parameters[1], instruction.modes.1)
+                    < value!(parameters[2], instruction.modes.2))
+                    as i32;
+            }
+            Opcode::Equals => {
+                let parameters = command!(4);
+                *position!(parameters[3]) = (value!(parameters[1], instruction.modes.1)
+                    == value!(parameters[2], instruction.modes.2))
+                    as i32;
+            }
+            Opcode::Halt => {
                 // command!(1);
                 return false;
-            }
-            _ => panic!("unknown opcode: {}", opcode),
+            } // _ => unimplemented!(),
         }
     } else {
         panic!("instruction pointer out of bounds")

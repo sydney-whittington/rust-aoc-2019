@@ -6,10 +6,7 @@ use nom::{
     IResult,
 };
 
-use std::{
-    collections::VecDeque,
-    str::FromStr,
-};
+use std::{collections::VecDeque, str::FromStr};
 pub mod template;
 
 // Use this file to add helper functions and additional modules.
@@ -76,6 +73,13 @@ fn opcode_from_number(n: &i32) -> Opcode {
 }
 
 #[derive(Debug)]
+pub enum State {
+    Active,
+    WaitingForInput,
+    Terminated,
+}
+
+#[derive(Debug)]
 struct Instruction {
     opcode: Opcode,
     modes: (Mode, Mode, Mode, Mode),
@@ -111,7 +115,7 @@ pub fn parse_machine(i: &str) -> IResult<&str, IntcodeMachine> {
     ))
 }
 
-fn step(machine: &mut IntcodeMachine) -> bool {
+fn step(machine: &mut IntcodeMachine) -> State {
     macro_rules! value {
         ($n:expr, $mode:expr) => {{
             match $mode {
@@ -158,11 +162,12 @@ fn step(machine: &mut IntcodeMachine) -> bool {
             }
             Opcode::Input => {
                 let parameters = command!(2);
-                let input = machine
-                    .inputs
-                    .pop_front()
-                    .expect("tried to read from empty input");
-                *position!(parameters[1]) = input;
+                let input = machine.inputs.pop_front();
+                if let Some(input) = input {
+                    *position!(parameters[1]) = input;
+                } else {
+                    return State::WaitingForInput;
+                }
             }
             Opcode::Output => {
                 let parameters = command!(2);
@@ -200,21 +205,22 @@ fn step(machine: &mut IntcodeMachine) -> bool {
             }
             Opcode::Halt => {
                 // command!(1);
-                return false;
+                return State::Terminated;
             } // _ => unimplemented!(),
         }
     } else {
         panic!("instruction pointer out of bounds")
     }
     // still active
-    true
+    State::Active
 }
 
-pub fn execute(machine: &mut IntcodeMachine) {
+pub fn execute(machine: &mut IntcodeMachine) -> State {
     loop {
         let active = step(machine);
-        if !active {
-            break;
+        match active {
+            State::Active => (),
+            State::Terminated | State::WaitingForInput => break active,
         }
     }
 }

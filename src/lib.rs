@@ -166,6 +166,8 @@ fn step(machine: &mut IntcodeMachine) -> State {
                 if let Some(input) = input {
                     *position!(parameters[1]) = input;
                 } else {
+                    // rewind and wait to try again
+                    machine.instruction_pointer -= 2;
                     return State::WaitingForInput;
                 }
             }

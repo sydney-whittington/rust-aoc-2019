@@ -33,8 +33,8 @@ pub fn part_two(input: &str) -> Option<i32> {
     let (_, machine) = parse_machine(input).unwrap();
 
     let mut maximum = 0;
-    // let combinations = (5..=9).permutations(5).collect::<Vec<_>>();
-    let combinations = vec![vec![9, 8, 7, 6, 5]];
+    let combinations = (5..=9).permutations(5).collect::<Vec<_>>();
+    // let combinations = vec![vec![9, 8, 7, 6, 5]];
     for combination in combinations {
         let mut io: VecDeque<i32> = VecDeque::from([0]);
         let mut machines: VecDeque<IntcodeMachine> =
@@ -44,29 +44,31 @@ pub fn part_two(input: &str) -> Option<i32> {
         for phase_setting in combination.iter() {
             let mut amp = machines.pop_front().unwrap();
             amp.inputs.push_back(*phase_setting);
-            amp.inputs.extend(io.drain(..));
-
-            execute(&mut amp);
-
-            io.extend(amp.outputs.drain(..));
             machines.push_back(amp);
         }
+
         // and then just let it run
-        loop {
-            let mut done = advent_of_code::State::Active;
-            for _ in 1..=5 {
+        let mut terminated = 0;
+        let mut done;
+
+        'outer: loop {
+            // organizational loop that's not actually needed
+            for _ in 'A'..='E' {
                 let mut amp = machines.pop_front().unwrap();
                 amp.inputs.extend(io.drain(..));
 
                 done = execute(&mut amp);
                 io.extend(amp.outputs.drain(..));
                 machines.push_back(amp);
-            }
-            if matches!(done, State::Terminated) {
-                break;
+
+                if matches!(done, State::Terminated) {
+                    terminated += 1;
+                    if terminated == 5 {
+                        break 'outer;
+                    }
+                }
             }
         }
-        dbg!(&io);
         // input to the thruster
         maximum = max(maximum, io.pop_front().unwrap());
     }

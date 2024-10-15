@@ -7,7 +7,7 @@ use nom::{
 };
 
 use std::{
-    io::{self, Write},
+    collections::VecDeque,
     str::FromStr,
 };
 pub mod template;
@@ -28,6 +28,8 @@ pub struct CoordinateSigned {
 pub struct IntcodeMachine {
     pub program: Vec<i32>,
     pub instruction_pointer: usize,
+    pub inputs: VecDeque<i32>,
+    pub outputs: VecDeque<i32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,6 +75,7 @@ fn opcode_from_number(n: &i32) -> Opcode {
     }
 }
 
+#[derive(Debug)]
 struct Instruction {
     opcode: Opcode,
     modes: (Mode, Mode, Mode, Mode),
@@ -102,6 +105,8 @@ pub fn parse_machine(i: &str) -> IResult<&str, IntcodeMachine> {
         IntcodeMachine {
             program,
             instruction_pointer: 0,
+            inputs: VecDeque::new(),
+            outputs: VecDeque::new(),
         },
     ))
 }
@@ -153,20 +158,17 @@ fn step(machine: &mut IntcodeMachine) -> bool {
             }
             Opcode::Input => {
                 let parameters = command!(2);
-                println!("Input: ");
-                io::stdout().flush().expect("unable to flush stdout");
-
-                let mut input_line = String::new();
-                io::stdin()
-                    .read_line(&mut input_line)
-                    .expect("Failed to read line");
-                let input: i32 = input_line.trim().parse().expect("Input not an integer");
+                let input = machine
+                    .inputs
+                    .pop_front()
+                    .expect("tried to read from empty input");
                 *position!(parameters[1]) = input;
             }
             Opcode::Output => {
-                // TODO: save outputs to test programatically?
                 let parameters = command!(2);
-                println!("Output: {}", value!(parameters[1], instruction.modes.1));
+                machine
+                    .outputs
+                    .push_back(value!(parameters[1], instruction.modes.1));
             }
             Opcode::JumpIfTrue => {
                 let parameters = command!(3);

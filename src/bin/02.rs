@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 advent_of_code::solution!(2);
 
-pub fn part_one(input: &str) -> Option<i32> {
+pub fn part_one(input: &str) -> Option<i64> {
     let (_, mut machine) = parse_machine(input).unwrap();
 
     machine.program[1] = 12;

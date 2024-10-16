@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 advent_of_code::solution!(7);
 
-pub fn part_one(input: &str) -> Option<i32> {
+pub fn part_one(input: &str) -> Option<i64> {
     let (_, machine) = parse_machine(input).unwrap();
 
     let mut maximum = 0;
@@ -29,14 +29,14 @@ pub fn part_one(input: &str) -> Option<i32> {
     Some(maximum)
 }
 
-pub fn part_two(input: &str) -> Option<i32> {
+pub fn part_two(input: &str) -> Option<i64> {
     let (_, machine) = parse_machine(input).unwrap();
 
     let mut maximum = 0;
     let combinations = (5..=9).permutations(5).collect::<Vec<_>>();
     // let combinations = vec![vec![9, 8, 7, 6, 5]];
     for combination in combinations {
-        let mut io: VecDeque<i32> = VecDeque::from([0]);
+        let mut io: VecDeque<i64> = VecDeque::from([0]);
         let mut machines: VecDeque<IntcodeMachine> =
             iter::repeat(machine.clone()).take(5).collect();
 

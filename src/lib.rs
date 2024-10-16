@@ -1,6 +1,6 @@
 use nom::{
     bytes::complete::tag,
-    character::complete::{digit1, i32},
+    character::complete::{digit1, i64},
     combinator::map_res,
     multi::separated_list1,
     IResult,
@@ -23,16 +23,18 @@ pub struct CoordinateSigned {
 
 #[derive(Debug, Clone)]
 pub struct IntcodeMachine {
-    pub program: Vec<i32>,
+    pub program: Vec<i64>,
     pub instruction_pointer: usize,
-    pub inputs: VecDeque<i32>,
-    pub outputs: VecDeque<i32>,
+    pub relative_base: i64,
+    pub inputs: VecDeque<i64>,
+    pub outputs: VecDeque<i64>,
 }
 
 #[derive(Debug, Clone, Copy)]
 enum Mode {
     Position,
     Immediate,
+    Relative,
     Placeholder,
 }
 
@@ -40,6 +42,7 @@ fn mode_from_digit(c: &char) -> Mode {
     match c {
         '0' => Mode::Position,
         '1' => Mode::Immediate,
+        '2' => Mode::Relative,
         _ => panic!("unexpected mode {}", c),
     }
 }
@@ -54,10 +57,11 @@ enum Opcode {
     JumpIfFalse,
     LessThan,
     Equals,
+    AdjustRelativeBase,
     Halt,
 }
 
-fn opcode_from_number(n: &i32) -> Opcode {
+fn opcode_from_number(n: &i64) -> Opcode {
     match n {
         1 => Opcode::Addition,
         2 => Opcode::Multiplication,
@@ -67,6 +71,7 @@ fn opcode_from_number(n: &i32) -> Opcode {
         6 => Opcode::JumpIfFalse,
         7 => Opcode::LessThan,
         8 => Opcode::Equals,
+        9 => Opcode::AdjustRelativeBase,
         99 => Opcode::Halt,
         _ => unimplemented!("received unknown opcode {}", n),
     }
@@ -85,7 +90,7 @@ struct Instruction {
     modes: (Mode, Mode, Mode, Mode),
 }
 
-fn decode_instruction(instruction: &i32) -> Instruction {
+fn decode_instruction(instruction: &i64) -> Instruction {
     let opcode = opcode_from_number(&(instruction % 100));
     let digits = format!("{:0>5}", instruction.to_string())
         .chars()
@@ -102,13 +107,14 @@ fn decode_instruction(instruction: &i32) -> Instruction {
 }
 
 pub fn parse_machine(i: &str) -> IResult<&str, IntcodeMachine> {
-    let (i, program) = separated_list1(tag(","), i32)(i)?;
+    let (i, program) = separated_list1(tag(","), i64)(i)?;
 
     Ok((
         i,
         IntcodeMachine {
             program,
             instruction_pointer: 0,
+            relative_base: 0,
             inputs: VecDeque::new(),
             outputs: VecDeque::new(),
         },
@@ -119,21 +125,32 @@ fn step(machine: &mut IntcodeMachine) -> State {
     macro_rules! value {
         ($n:expr, $mode:expr) => {{
             match $mode {
-                Mode::Position => *position!($n),
                 Mode::Immediate => $n,
+                Mode::Position | Mode::Relative => *position!($n, $mode),
                 _ => unimplemented!(),
             }
         }};
     }
 
     macro_rules! position {
-        ($n:expr) => {
+        ($n:expr, $mode:expr) => {{
+            let offset = match $mode {
+                Mode::Position => 0,
+                Mode::Relative => machine.relative_base,
+                Mode::Immediate => panic!("tried to access position with immediate mode"),
+                _ => unimplemented!(),
+            };
+            let safe_n = ($n + offset).try_into().expect("got an unsafe n");
+            if machine.program.len() < safe_n {
+                machine.program.resize(machine.program.len() + safe_n, 0);
+            }
             machine
                 .program
-                .get_mut($n as usize)
+                .get_mut(safe_n)
                 .unwrap_or_else(|| panic!("value {} invalid index", $n))
-        };
+        }};
     }
+
     macro_rules! command {
         ($r:expr) => {{
             let result = machine
@@ -152,19 +169,19 @@ fn step(machine: &mut IntcodeMachine) -> State {
         match instruction.opcode {
             Opcode::Addition => {
                 let parameters = command!(4);
-                *position!(parameters[3]) = value!(parameters[1], instruction.modes.1)
+                *position!(parameters[3], instruction.modes.3) = value!(parameters[1], instruction.modes.1)
                     + value!(parameters[2], instruction.modes.2);
             }
             Opcode::Multiplication => {
                 let parameters = command!(4);
-                *position!(parameters[3]) = value!(parameters[1], instruction.modes.1)
+                *position!(parameters[3], instruction.modes.3) = value!(parameters[1], instruction.modes.1)
                     * value!(parameters[2], instruction.modes.2);
             }
             Opcode::Input => {
                 let parameters = command!(2);
                 let input = machine.inputs.pop_front();
                 if let Some(input) = input {
-                    *position!(parameters[1]) = input;
+                    *position!(parameters[1], instruction.modes.1) = input;
                 } else {
                     // rewind and wait to try again
                     machine.instruction_pointer -= 2;
@@ -195,15 +212,19 @@ fn step(machine: &mut IntcodeMachine) -> State {
             }
             Opcode::LessThan => {
                 let parameters = command!(4);
-                *position!(parameters[3]) = (value!(parameters[1], instruction.modes.1)
+                *position!(parameters[3], instruction.modes.3) = (value!(parameters[1], instruction.modes.1)
                     < value!(parameters[2], instruction.modes.2))
-                    as i32;
+                    as i64;
             }
             Opcode::Equals => {
                 let parameters = command!(4);
-                *position!(parameters[3]) = (value!(parameters[1], instruction.modes.1)
+                *position!(parameters[3], instruction.modes.3) = (value!(parameters[1], instruction.modes.1)
                     == value!(parameters[2], instruction.modes.2))
-                    as i32;
+                    as i64;
+            }
+            Opcode::AdjustRelativeBase => {
+                let parameters = command!(2);
+                machine.relative_base += value!(parameters[1], instruction.modes.1);
             }
             Opcode::Halt => {
                 // command!(1);

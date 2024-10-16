@@ -9,13 +9,18 @@ pub fn part_one(input: &str) -> Option<i64> {
     machine.inputs.push_back(1);
     execute(&mut machine);
 
-    println!("{}", machine.outputs.iter().join(","));
-
     Some(machine.outputs.pop_front().unwrap())
 }
 
-pub fn part_two(_input: &str) -> Option<i64> {
-    None
+pub fn part_two(input: &str) -> Option<i64> {
+    let (_, mut machine) = parse_machine(input).unwrap();
+
+    machine.inputs.push_back(2);
+    execute(&mut machine);
+
+    println!("{}", machine.outputs.iter().join(","));
+
+    Some(machine.outputs.pop_front().unwrap())
 }
 
 #[cfg(test)]
@@ -41,9 +46,5 @@ mod tests {
         assert_eq!(result, Some(1125899906842624));
     }
 
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
-    }
+    // no part 2 tests
 }

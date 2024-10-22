@@ -6,7 +6,11 @@ use nom::{
     IResult,
 };
 
-use std::{collections::VecDeque, fmt::{self, Display}, str::FromStr};
+use std::{
+    collections::VecDeque,
+    fmt::{self, Display},
+    str::FromStr,
+};
 pub mod template;
 
 // Use this file to add helper functions and additional modules.
@@ -181,13 +185,15 @@ fn step(machine: &mut IntcodeMachine) -> State {
         match instruction.opcode {
             Opcode::Addition => {
                 let parameters = command!(4);
-                *position!(parameters[3], instruction.modes.3) = value!(parameters[1], instruction.modes.1)
-                    + value!(parameters[2], instruction.modes.2);
+                *position!(parameters[3], instruction.modes.3) =
+                    value!(parameters[1], instruction.modes.1)
+                        + value!(parameters[2], instruction.modes.2);
             }
             Opcode::Multiplication => {
                 let parameters = command!(4);
-                *position!(parameters[3], instruction.modes.3) = value!(parameters[1], instruction.modes.1)
-                    * value!(parameters[2], instruction.modes.2);
+                *position!(parameters[3], instruction.modes.3) =
+                    value!(parameters[1], instruction.modes.1)
+                        * value!(parameters[2], instruction.modes.2);
             }
             Opcode::Input => {
                 let parameters = command!(2);
@@ -224,15 +230,15 @@ fn step(machine: &mut IntcodeMachine) -> State {
             }
             Opcode::LessThan => {
                 let parameters = command!(4);
-                *position!(parameters[3], instruction.modes.3) = (value!(parameters[1], instruction.modes.1)
-                    < value!(parameters[2], instruction.modes.2))
-                    as i64;
+                *position!(parameters[3], instruction.modes.3) =
+                    (value!(parameters[1], instruction.modes.1)
+                        < value!(parameters[2], instruction.modes.2)) as i64;
             }
             Opcode::Equals => {
                 let parameters = command!(4);
-                *position!(parameters[3], instruction.modes.3) = (value!(parameters[1], instruction.modes.1)
-                    == value!(parameters[2], instruction.modes.2))
-                    as i64;
+                *position!(parameters[3], instruction.modes.3) =
+                    (value!(parameters[1], instruction.modes.1)
+                        == value!(parameters[2], instruction.modes.2)) as i64;
             }
             Opcode::AdjustRelativeBase => {
                 let parameters = command!(2);

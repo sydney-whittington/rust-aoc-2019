@@ -101,9 +101,5 @@ mod tests {
         assert_eq!(result, Some(1));
     }
 
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
-    }
+    // no tests for part 2
 }

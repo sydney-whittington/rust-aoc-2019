@@ -6,7 +6,7 @@ use nom::{
     IResult,
 };
 
-use std::{collections::VecDeque, str::FromStr};
+use std::{collections::VecDeque, fmt::{self, Display}, str::FromStr};
 pub mod template;
 
 // Use this file to add helper functions and additional modules.
@@ -19,6 +19,18 @@ pub fn parse_usize(i: &str) -> IResult<&str, usize> {
 pub struct CoordinateSigned {
     pub x: i32,
     pub y: i32,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct Coordinate<T> {
+    pub left: T,
+    pub top: T,
+}
+
+impl<T: Display> fmt::Display for Coordinate<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.left, self.top)
+    }
 }
 
 #[derive(Debug, Clone)]

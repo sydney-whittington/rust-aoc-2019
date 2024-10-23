@@ -20,3 +20,5 @@ pub fn part_two(input: &str) -> Option<i64> {
     execute(&mut machine);
     machine.outputs.pop_front()
 }
+
+// no tests

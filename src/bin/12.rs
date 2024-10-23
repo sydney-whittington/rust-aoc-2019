@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::{
     bytes::complete::tag,
     character::complete::{i32, newline},
@@ -5,10 +7,11 @@ use nom::{
     sequence::{delimited, preceded},
     IResult,
 };
+use num::integer::lcm;
 
 advent_of_code::solution!(12);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Moon {
     position: (i32, i32, i32),
     velocity: (i32, i32, i32),
@@ -50,6 +53,14 @@ impl Moon {
         self.position.1 += self.velocity.1;
         self.position.2 += self.velocity.2;
     }
+
+    fn get_dimensions(&self) -> ((i32, i32), (i32, i32), (i32, i32)) {
+        (
+            (self.position.0, self.velocity.0),
+            (self.position.1, self.velocity.1),
+            (self.position.2, self.velocity.2),
+        )
+    }
 }
 
 fn parse_moon(i: &str) -> IResult<&str, Moon> {
@@ -90,7 +101,50 @@ pub fn part_one(input: &str) -> Option<i32> {
     Some(moons.iter().map(|m| m.total()).sum::<i32>())
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
+pub fn part_two(input: &str) -> Option<u64> {
+    let (_, mut moons) = parser(input).unwrap();
+    let mut x_seen = HashMap::new();
+    let mut y_seen = HashMap::new();
+    let mut z_seen = HashMap::new();
+
+    let mut x_cycle = 0;
+    let mut y_cycle = 0;
+    let mut z_cycle = 0;
+
+    for i in 0.. {
+        let (x, y, z) = moons.iter().map(|m| m.get_dimensions()).fold(
+            (vec![], vec![], vec![]),
+            |(mut xs, mut ys, mut zs), (x, y, z)| {
+                xs.push(x);
+                ys.push(y);
+                zs.push(z);
+                (xs, ys, zs)
+            },
+        );
+        // is all this repetition really the best we can do?
+        if x_cycle == 0 {
+            if let Some(t) = x_seen.insert(x, i) {
+                x_cycle = i - t;
+            }
+        }
+        if y_cycle == 0 {
+            if let Some(t) = y_seen.insert(y, i) {
+                y_cycle = i - t;
+            }
+        }
+        if z_cycle == 0 {
+            if let Some(t) = z_seen.insert(z, i) {
+                z_cycle = i - t;
+            }
+        }
+
+        simulate(&mut moons);
+
+        if x_cycle != 0 && y_cycle != 0 && z_cycle != 0 {
+            return Some(lcm(x_cycle, lcm(y_cycle, z_cycle)));
+        }
+    }
+
     None
 }
 
@@ -120,8 +174,16 @@ mod tests {
     }
 
     #[test]
-    fn test_part_two() {
+    fn test_part_two_a() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(2772));
+    }
+
+    #[test]
+    fn test_part_two_b() {
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 1,
+        ));
+        assert_eq!(result, Some(4686774924));
     }
 }

@@ -13,11 +13,10 @@
                     "test",
                     "--no-run",
                     // replace `01` here with the solution you like to debug.
-                    "--bin=09",
+                    "--bin=14",
                     "--package=advent_of_code",
                 ],
             },
-            "args": ["test_part_two_a"],
             "cwd": "${workspaceFolder}"
         },
         {

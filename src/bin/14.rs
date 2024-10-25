@@ -56,7 +56,7 @@ fn parser(i: &str) -> IResult<&str, Reactions> {
 }
 
 fn produce<'a>(
-    rules: &'a HashMap<String, Rule>,
+    rules: &'a Reactions,
     mut needed: VecDeque<(u64, &'a str)>,
     leftovers: &mut HashMap<&'a str, u64>,
 ) -> u64 {
@@ -120,7 +120,6 @@ pub fn part_two(input: &str) -> Option<u64> {
     loop {
         // how many do we know we can make? (but at least 1)
         let fast_forward_factor = std::cmp::max(remaining_ore / ore_for_one_fuel, 1);
-        println!("making {fast_forward_factor} fuel with {remaining_ore} ore left at {ore_for_one_fuel} ore each");
         let ore_for_fast_forward = produce(
             &rules,
             VecDeque::from([(fast_forward_factor, "FUEL")]),

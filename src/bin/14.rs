@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use nom::{
     bytes::complete::tag,
-    character::complete::{alpha1, newline, u32},
+    character::complete::{alpha1, newline, u64},
     multi::separated_list1,
     sequence::{preceded, separated_pair},
     IResult,
@@ -13,7 +13,7 @@ advent_of_code::solution!(14);
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct Reactant {
     symbol: String,
-    quantity: u32,
+    quantity: u64,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -25,8 +25,8 @@ struct Rule {
 type Reactions = HashMap<String, Rule>;
 
 fn parse_rule(i: &str) -> IResult<&str, Rule> {
-    let (i, precursors) = separated_list1(tag(", "), separated_pair(u32, tag(" "), alpha1))(i)?;
-    let (i, product) = preceded(tag(" => "), separated_pair(u32, tag(" "), alpha1))(i)?;
+    let (i, precursors) = separated_list1(tag(", "), separated_pair(u64, tag(" "), alpha1))(i)?;
+    let (i, product) = preceded(tag(" => "), separated_pair(u64, tag(" "), alpha1))(i)?;
 
     Ok((
         i,
@@ -57,9 +57,9 @@ fn parser(i: &str) -> IResult<&str, Reactions> {
 
 fn produce<'a>(
     rules: &'a HashMap<String, Rule>,
-    mut needed: VecDeque<(u32, &'a str)>,
-    leftovers: &mut HashMap<&'a str, u32>,
-) -> u32 {
+    mut needed: VecDeque<(u64, &'a str)>,
+    leftovers: &mut HashMap<&'a str, u64>,
+) -> u64 {
     let mut ore = 0;
 
     while let Some((mut quantity_needed, chemical)) = needed.pop_front() {
@@ -67,7 +67,6 @@ fn produce<'a>(
 
         if let Some(stored) = leftovers.get(chemical) {
             if *stored >= quantity_needed {
-                // println!("needed {quantity_needed} {chemical} and had it in stock");
                 leftovers
                     .entry(chemical)
                     .and_modify(|s| *s -= quantity_needed);
@@ -77,12 +76,10 @@ fn produce<'a>(
                 leftovers.remove(chemical);
             }
         }
-        // print!("need {quantity_needed} {chemical}: from ");
 
         let reactions_needed = quantity_needed.div_ceil(rule.product.quantity);
         for precursor in rule.precursors.iter() {
             let precursor_needed = reactions_needed * precursor.quantity;
-            // print!("{} {}, ", precursor_needed, precursor.symbol);
             if precursor.symbol == "ORE" {
                 ore += precursor_needed;
             } else {
@@ -90,7 +87,6 @@ fn produce<'a>(
             }
         }
         let too_many = (reactions_needed * rule.product.quantity) - quantity_needed;
-        // println!(" with {} leftovers", too_many);
 
         leftovers
             .entry(&rule.product.symbol)
@@ -101,14 +97,13 @@ fn produce<'a>(
     ore
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
+pub fn part_one(input: &str) -> Option<u64> {
     let (_, rules) = parser(input).unwrap();
 
     let needed = VecDeque::from([(1, "FUEL")]);
-    let mut leftovers: HashMap<&str, u32> = HashMap::new();
+    let mut leftovers: HashMap<&str, u64> = HashMap::new();
 
     let ore_needed = produce(&rules, needed, &mut leftovers);
-    dbg!(leftovers);
 
     Some(ore_needed)
 }
@@ -116,29 +111,25 @@ pub fn part_one(input: &str) -> Option<u32> {
 pub fn part_two(input: &str) -> Option<u64> {
     let (_, rules) = parser(input).unwrap();
 
-    let mut leftovers: HashMap<&str, u32> = HashMap::new();
+    let mut leftovers: HashMap<&str, u64> = HashMap::new();
     let ore_for_one_fuel = produce(&rules, VecDeque::from([(1, "FUEL")]), &mut leftovers);
 
-    // how many can we make easily?
-    let fast_forward_factor: u64 = 1_000_000_000_000 / ore_for_one_fuel as u64;
-    dbg!(&fast_forward_factor);
-    // it looks like we can be more efficient considering leftovers from the first time
-    leftovers
-        .values_mut()
-        .for_each(|l| *l *= fast_forward_factor as u32);
-    let mut remaining_ore = 1_000_000_000_000 - ore_for_one_fuel as u64 * fast_forward_factor;
-    let mut total_fuel = fast_forward_factor;
+    let mut total_fuel = 1;
+    let mut remaining_ore = 1_000_000_000_000 - ore_for_one_fuel;
 
     loop {
-        match remaining_ore.checked_sub(produce(
+        // how many do we know we can make? (but at least 1)
+        let fast_forward_factor = std::cmp::max(remaining_ore / ore_for_one_fuel, 1);
+        println!("making {fast_forward_factor} fuel with {remaining_ore} ore left at {ore_for_one_fuel} ore each");
+        let ore_for_fast_forward = produce(
             &rules,
-            VecDeque::from([(1, "FUEL")]),
+            VecDeque::from([(fast_forward_factor, "FUEL")]),
             &mut leftovers,
-        ) as u64)
-        {
+        );
+        match remaining_ore.checked_sub(ore_for_fast_forward) {
             Some(n) => {
+                total_fuel += fast_forward_factor;
                 remaining_ore = n;
-                total_fuel += 1;
             }
             None => {
                 return Some(total_fuel);

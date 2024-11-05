@@ -72,11 +72,11 @@ fn visualize(map: &Map) {
     println!();
 }
 
+fn explore(machine: &mut IntcodeMachine, map: &mut Map, location: Location) -> u32 {
+    let mut stack = VecDeque::from([(machine.clone(), location, 0)]);
+    let mut found = 0;
 
-fn explore(machine: &mut IntcodeMachine, map: &mut Map, location: Location) {
-    let mut stack = VecDeque::from([(machine.clone(), location)]);
-
-    while let Some((machine, location)) = stack.pop_front() {
+    while let Some((machine, location, steps)) = stack.pop_front() {
         for direction in all::<Direction>() {
             let new_location = transform_location(&direction, &location);
             if map.contains_key(&new_location) {
@@ -92,27 +92,31 @@ fn explore(machine: &mut IntcodeMachine, map: &mut Map, location: Location) {
 
             match terrain {
                 // recurse
-                Terrain::Floor | Terrain::Oxygen => {
-                    stack.push_back((branch_machine, new_location));
-                },
+                Terrain::Floor => {
+                    stack.push_back((branch_machine, new_location, steps + 1));
+                }
+                Terrain::Oxygen => {
+                    stack.push_back((branch_machine, new_location, steps + 1));
+                    found = steps + 1;
+                }
                 // dead end, stop exploring that path
                 Terrain::Wall => (),
             }
         }
     }
+
+    found
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
     let (_, mut machine) = parse_machine(input).unwrap();
     let mut map = HashMap::from([((0, 0), Terrain::Floor)]);
 
-    explore(&mut machine, &mut map, (0, 0));
+    let steps = explore(&mut machine, &mut map, (0, 0));
 
     visualize(&map);
 
-    // TODO: then actually get to the thing from the built map
-
-    None
+    Some(steps)
 }
 
 pub fn part_two(_input: &str) -> Option<u32> {

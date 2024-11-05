@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use advent_of_code::{execute, parse_machine, IntcodeMachine};
 use enum_iterator::{all, Sequence};
@@ -51,6 +51,7 @@ fn from_status_code(code: &i64) -> Terrain {
     }
 }
 
+#[allow(dead_code)]
 fn visualize(map: &Map) {
     let (min_x, max_x) = map.keys().map(|l| l.0).minmax().into_option().unwrap();
     let (min_y, max_y) = map.keys().map(|l| l.1).minmax().into_option().unwrap();
@@ -108,28 +109,55 @@ fn explore(machine: &mut IntcodeMachine, map: &mut Map, location: Location) -> u
     found
 }
 
+fn flood_fill(map: &mut Map, location: Location) -> u32 {
+    let mut stack = VecDeque::from([(location, 0)]);
+    let mut visited = HashSet::from([location]);
+    let mut duration = 0;
+
+    while let Some((location, steps)) = stack.pop_front() {
+        for direction in all::<Direction>() {
+            let new_location = transform_location(&direction, &location);
+            if visited.contains(&new_location) {
+                continue;
+            } else {
+                visited.insert(new_location);
+                match map.get(&new_location) {
+                    Some(Terrain::Floor) => stack.push_back((new_location, steps + 1)),
+                    _ => continue,
+                }
+                duration = std::cmp::max(duration, steps + 1);
+            }
+        }
+    }
+
+    duration
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
     let (_, mut machine) = parse_machine(input).unwrap();
     let mut map = HashMap::from([((0, 0), Terrain::Floor)]);
 
     let steps = explore(&mut machine, &mut map, (0, 0));
 
-    visualize(&map);
+    // visualize(&map);
 
     Some(steps)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u32> {
+    let (_, mut machine) = parse_machine(input).unwrap();
+    let mut map = HashMap::from([((0, 0), Terrain::Floor)]);
+
+    explore(&mut machine, &mut map, (0, 0));
+    let oxygen = map
+        .iter()
+        .find(|(_, t)| matches!(t, Terrain::Oxygen))
+        .unwrap()
+        .0
+        .to_owned();
+    let minutes = flood_fill(&mut map, oxygen);
+
+    Some(minutes)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
-    }
-}
+// no tests for this one

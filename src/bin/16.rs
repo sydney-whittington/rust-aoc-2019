@@ -1,4 +1,4 @@
-use std::iter;
+use std::{collections::VecDeque, iter};
 
 use itertools::Itertools;
 
@@ -29,6 +29,18 @@ fn phase(nums: Vec<u32>) -> Vec<u32> {
     output
 }
 
+fn phase2(nums: Vec<u32>) -> Vec<u32> {
+    let mut output = VecDeque::new();
+    output.push_front(*nums.last().unwrap());
+
+    for i in (0..nums.len()-1).rev() {
+        let result = (nums[i] + *output.front().unwrap()) % 10;
+
+        output.push_front(result);
+    }
+
+    output.into()
+}
 pub fn part_one(input: &str) -> Option<String> {
     let mut digits = input.chars().filter_map(|c| c.to_digit(10)).collect_vec();
 
@@ -39,8 +51,18 @@ pub fn part_one(input: &str) -> Option<String> {
     Some(digits.into_iter().take(8).join(""))
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<String> {
+    let initial_digits = input.chars().filter_map(|c| c.to_digit(10)).collect_vec();
+    let initial_length = initial_digits.len();
+    let offset = initial_digits.iter().take(7).join("").parse::<usize>().unwrap();
+
+    let mut digits = initial_digits.into_iter().cycle().take(initial_length * 10000).skip(offset).collect_vec();
+
+    for _ in 0..100 {
+        digits = phase2(digits);
+    }
+
+    Some(digits.into_iter().take(8).join(""))
 }
 
 #[cfg(test)]
@@ -62,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_two(&advent_of_code::template::read_file_part("examples", DAY, 1));
+        assert_eq!(result, Some("84462026".to_string()));
     }
 }

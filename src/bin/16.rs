@@ -29,9 +29,9 @@ fn phase(nums: Vec<u32>) -> Vec<u32> {
     output
 }
 
-fn phase2(nums: Vec<u32>) -> Vec<u32> {
+fn phase2(nums: VecDeque<u32>) -> VecDeque<u32> {
     let mut output = VecDeque::new();
-    output.push_front(*nums.last().unwrap());
+    output.push_front(*nums.back().unwrap());
 
     for i in (0..nums.len()-1).rev() {
         let result = (nums[i] + *output.front().unwrap()) % 10;
@@ -56,7 +56,7 @@ pub fn part_two(input: &str) -> Option<String> {
     let initial_length = initial_digits.len();
     let offset = initial_digits.iter().take(7).join("").parse::<usize>().unwrap();
 
-    let mut digits = initial_digits.into_iter().cycle().take(initial_length * 10000).skip(offset).collect_vec();
+    let mut digits = initial_digits.into_iter().cycle().take(initial_length * 10000).skip(offset).collect();
 
     for _ in 0..100 {
         digits = phase2(digits);

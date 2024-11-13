@@ -157,7 +157,7 @@ fn step(machine: &mut IntcodeMachine) -> State {
                 _ => unimplemented!(),
             };
             let safe_n = ($n + offset).try_into().expect("got an unsafe n");
-            if machine.program.len() < safe_n {
+            if machine.program.len() <= safe_n {
                 machine.program.resize(machine.program.len() + safe_n, 0);
             }
             machine

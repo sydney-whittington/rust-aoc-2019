@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use advent_of_code::{execute, parse_machine, Coordinate};
-use itertools::Itertools;
 
 advent_of_code::solution!(17);
 
@@ -12,6 +11,7 @@ enum Facing {
     Left,
 }
 
+#[allow(dead_code)]
 enum Location {
     Scaffold,
     Space,
@@ -86,6 +86,7 @@ pub fn part_one(input: &str) -> Option<usize> {
     execute(&mut machine);
 
     let chars: String = machine.outputs.iter().map(|c| (*c as u8) as char).collect();
+    // print!("{chars}");
     let region = parse_region(&chars);
 
     let intersections = region
@@ -103,17 +104,25 @@ pub fn part_one(input: &str) -> Option<usize> {
     Some(alignments.sum())
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<i64> {
+    let (_, mut machine) = parse_machine(input).unwrap();
+    machine.program[0] = 2;
+
+    // hand solved in data/examples/17-solved.txt
+    let main = "A,B,A,C,B,C,A,B,A,C\n";
+    let a = "R,6,L,10,R,8,R,8\n";
+    let b = "R,12,L,8,L,10\n";
+    let c = "R,12,L,10,R,6,L,10\n";
+    let live = "n\n";
+
+    let routine = format!("{}{}{}{}{}", main, a, b, c, live);
+    machine
+        .inputs
+        .extend(routine.as_bytes().iter().map(|c| *c as i64));
+
+    execute(&mut machine);
+
+    Some(*machine.outputs.back().unwrap())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
-    }
-}
+// no tests (technically there are examples but they don't work on the same interface)
